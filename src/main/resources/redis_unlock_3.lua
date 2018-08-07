@@ -1,8 +1,8 @@
 local key = KEYS[1]
-local timestamp = ARGV[1]
-local result = redis.call("get", key)
+local value = ARGV[1]
+local oldvalue = redis.call("get", key)
 
-if (result == timestamp) then
+if (oldvalue == value) then
     return redis.call("del", key)
 else
     return 0
