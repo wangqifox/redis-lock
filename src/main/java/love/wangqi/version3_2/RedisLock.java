@@ -12,7 +12,7 @@ import java.util.UUID;
  * @description:
  * @date: Created in 2018/8/7 下午2:50
  */
-public class RedisLock extends RedisPool implements Lock {
+public class RedisLock extends LockTemplate implements Lock {
     private ThreadLocal<String> uniqueId;
     private String unlockScript;
 
@@ -22,70 +22,36 @@ public class RedisLock extends RedisPool implements Lock {
     }
 
     @Override
-    public Boolean lock(String key, long timeout) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            uniqueId.set(UUID.randomUUID().toString());
-            String result = redis.set(key, uniqueId.get(), "NX", "EX", timeout);
-            if (result != null && result.equals("OK")) {
-                return true;
-            } else {
-                return false;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
-        }
-        return false;
-    }
-
-    @Override
-    public void unlock(String key) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            redis.eval(unlockScript,
-                    Arrays.asList(key),
-                    Arrays.asList(uniqueId.get())
-            );
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
+    protected Boolean lock(Jedis redis, String key, long timeout) {
+        uniqueId.set(UUID.randomUUID().toString());
+        String result = redis.set(key, uniqueId.get(), "NX", "EX", timeout);
+        if (result != null && result.equals("OK")) {
+            return true;
+        } else {
+            return false;
         }
     }
 
     @Override
-    public Boolean isLocked(String key) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            String result = redis.get(key);
-            if (result != null) {
-                return true;
-            } else {
-                return false;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
-        }
-        return false;
+    protected void unlock(Jedis redis, String key) {
+        redis.eval(unlockScript,
+                Arrays.asList(key),
+                Arrays.asList(uniqueId.get())
+        );
     }
 
     @Override
-    public void expire(String key, long timeout) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            redis.expire(key, (int)timeout);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
+    protected Boolean isLocked(Jedis redis, String key) {
+        String result = redis.get(key);
+        if (result != null) {
+            return true;
+        } else {
+            return false;
         }
+    }
+
+    @Override
+    protected void expire(Jedis redis, String key, long timeout) {
+        redis.expire(key, (int)timeout);
     }
 }

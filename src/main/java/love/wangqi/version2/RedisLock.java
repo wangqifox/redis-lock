@@ -1,7 +1,7 @@
 package love.wangqi.version2;
 
 import love.wangqi.Lock;
-import love.wangqi.RedisPool;
+import love.wangqi.LockTemplate;
 import redis.clients.jedis.Jedis;
 
 /**
@@ -9,36 +9,20 @@ import redis.clients.jedis.Jedis;
  * @description:
  * @date: Created in 2018/8/7 上午8:20
  */
-public class RedisLock extends RedisPool implements Lock {
+public class RedisLock extends LockTemplate implements Lock {
+
     @Override
-    public Boolean lock(String key, long timeout) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            String result = redis.set(key, "1", "NX", "EX", timeout);
-            if (result != null && result.equals("OK")) {
-                return true;
-            } else {
-                return false;
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
+    protected Boolean lock(Jedis redis, String key, long timeout) {
+        String result = redis.set(key, "1", "NX", "EX", timeout);
+        if (result != null && result.equals("OK")) {
+            return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     @Override
-    public void unlock(String key) {
-        Jedis redis = null;
-        try {
-            redis = getJedis();
-            redis.del(key);
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            closeJedis(redis);
-        }
+    protected void unlock(Jedis redis, String key) {
+        redis.del(key);
     }
 }
